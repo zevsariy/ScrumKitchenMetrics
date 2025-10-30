@@ -205,3 +205,13 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project specific artifacts
+reports/
+output/
+*.pdf
+*.xlsx
+*.log
+
+# Local override env files
+.env.local

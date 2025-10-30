@@ -1,0 +1,16 @@
+{% extends 'ui/base.html' %}
+{% block content %}
+<h2>JIRA Explorer</h2>
+{% if not enabled %}
+<p>JIRA disabled. Set <code>JIRA_ENABLED=true</code> and configure credentials.</p>
+{% else %}
+<p>Поля и примеры значений из выборки задач (ограничено 100):</p>
+<table border="1" cellspacing="0" cellpadding="4">
+<tr><th>Field Key</th><th>Sample Value</th></tr>
+{% for k in fields %}
+<tr><td>{{ k }}</td><td>{{ samples.get(k,'') }}</td></tr>
+{% endfor %}
+</table>
+<p>Пример доступа: <code>jira_issues[0]['fields']['summary']</code></p>
+{% endif %}
+{% endblock %}

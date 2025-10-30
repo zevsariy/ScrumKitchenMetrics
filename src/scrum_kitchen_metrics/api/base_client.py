@@ -29,8 +29,8 @@ class BaseAPIClient(abc.ABC):
         self.verify_ssl = verify_ssl
         settings = get_settings()
         timeout = settings.network.http_timeout
-        proxies = settings.network.proxy_url
-        self._client = httpx.Client(base_url=self.base_url, timeout=timeout, verify=verify_ssl, proxies=proxies)
+        # Some httpx versions may not accept 'proxies' in Client init reliably across platforms; omit for now.
+        self._client = httpx.Client(base_url=self.base_url, timeout=timeout, verify=verify_ssl)
         self._cache = None
         # Lazy enable cache when env flags will exist; guarded to avoid mandatory dependency
         cache_enabled = getattr(settings.network, 'cache_enabled', False)

@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
+import time
+import os
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -40,7 +42,7 @@ def _write_overrides(mapping: dict):
     lines = [f"{k}={v}" for k, v in sorted(mapping.items())]
     Path('overrides.env').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
-CUSTOM_METRICS_FILE = Path('custom_metrics.json')
+CUSTOM_METRICS_FILE = Path(os.getenv('CUSTOM_METRICS_FILE', 'custom_metrics.json'))
 
 def _load_custom_metrics() -> List[Dict[str, Any]]:
     if not CUSTOM_METRICS_FILE.exists():
@@ -59,33 +61,79 @@ def _save_custom_metrics(metrics: List[Dict[str, Any]]):
     CUSTOM_METRICS_FILE.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding='utf-8')
 
 def _safe_eval(expr: str, variables: Dict[str, Any]) -> Any:
+    # Базовые ограничения на размер и сложность выражения
+    if len(expr) > 500:
+        raise ValueError("Expression too long")
+    banned_tokens = ['__', 'import', 'lambda', 'eval', 'exec']
+    for t in banned_tokens:
+        if t in expr:
+            raise ValueError(f"Token '{t}' not allowed")
+    depth = 0
+    max_depth = 25
+    for ch in expr:
+        if ch == '(':
+            depth += 1
+            if depth > max_depth:
+                raise ValueError("Parenthesis depth limit exceeded")
+        elif ch == ')':
+            depth -= 1
+    def avg(seq):  # noqa: D401
+        return (sum(seq) / len(seq)) if seq else None
+    def count_if_equal(seq, value):  # noqa: D401
+        return sum(1 for x in seq if x == value)
     allowed_names = {
         'len': len,
         'sum': sum,
         'min': min,
         'max': max,
         'round': round,
+        'avg': avg,
+        'count_if_equal': count_if_equal,
+        'get': lambda d, k, default=None: d.get(k, default),
     }
     code = compile(expr, '<expr>', 'eval')
+    # Allow simple comprehension loop variables (i,j,k,x)
+    comprehension_vars = {'i', 'j', 'k', 'x'}
     for name in code.co_names:
-        if name not in allowed_names and name not in variables:
-            raise ValueError(f"Name '{name}' not allowed")
+        if name in allowed_names:
+            continue
+        if name in variables:
+            continue
+        if name in comprehension_vars:
+            continue
+        raise ValueError(f"Name '{name}' not allowed")
     return eval(code, {'__builtins__': {}}, {**allowed_names, **variables})
 
 def _register_dynamic_metrics():
     from ..metrics.base import Metric, MetricResult
     settings = get_settings()
     custom = _load_custom_metrics()
-    variables = {}
-    # Provide access to settings for simple expressions (e.g., app_name)
-    variables['settings'] = settings
+    variables = {'settings': settings}
+    # Простой TTL-кэш для списка jira_issues (в пределах одного запроса/короткого интервала)
+    _jira_cache: Dict[Tuple[int], Tuple[float, List[Dict[str, Any]]]] = {}
+    def _fetch_jira_issues(limit: int = 200):  # noqa: D401
+        if not settings.jira.enabled:
+            return []
+        ttl_seconds = 5
+        key = (limit,)
+        now = time.time()
+        cached = _jira_cache.get(key)
+        if cached and (now - cached[0]) < ttl_seconds:
+            return cached[1]
+        from ..api.jira_client import JiraClient
+        jql = settings.jira.jql_filter or 'project = DEMO'
+        with JiraClient() as jc:
+            data = jc.search_issues_all(jql, max_results=limit)
+        _jira_cache[key] = (now, data)
+        return data
 
     class DynamicMetric(Metric):  # base for dynamic instances
         source = 'custom'
         expression: str
         def compute(self) -> MetricResult:  # noqa: D401
             try:
-                value = _safe_eval(self.expression, variables)
+                jira_issues = _fetch_jira_issues(200)
+                value = _safe_eval(self.expression, {**variables, 'jira_issues': jira_issues})
                 return MetricResult(self.key, self.label, value, self.description or 'Dynamic metric')
             except Exception as e:  # noqa: BLE001
                 return MetricResult(self.key, self.label, None, f"Dynamic error: {e}")
@@ -97,12 +145,19 @@ def _register_dynamic_metrics():
         label = spec.get('label', key)
         expr = spec.get('expression', 'None')
         desc = spec.get('description')
-        # Create metric subclass dynamically
-        attrs = {'key': key, 'label': label, 'description': desc, 'expression': expr}
+        dyn_source = 'jira' if 'jira_issues' in expr else 'custom'
+        attrs = {'key': key, 'label': label, 'description': desc, 'expression': expr, 'source': dyn_source}
         cls = type(f"DynMetric_{key}", (DynamicMetric,), attrs)
         register_metric(cls)
 
 _register_dynamic_metrics()
+
+def reload_dynamic_metrics():  # noqa: D401
+    """Public helper to re-scan custom_metrics.json and register any new dynamic metrics.
+
+    Safe to call multiple times; registry skips duplicates by key.
+    """
+    _register_dynamic_metrics()
 
 @router.get('/', response_class=HTMLResponse)
 def dashboard(request: Request):  # noqa: D401
@@ -169,7 +224,13 @@ def add_custom_metric(
         def compute(self) -> MetricResult:  # noqa: D401
             try:
                 settings = get_settings()
-                value = _safe_eval(self.expression, {'settings': settings})
+                jira_issues = []
+                if settings.jira.enabled:
+                    from ..api.jira_client import JiraClient
+                    jql = settings.jira.jql_filter or 'project = DEMO'
+                    with JiraClient() as jc:
+                        jira_issues = jc.search_issues_all(jql, max_results=200)
+                value = _safe_eval(self.expression, {'settings': settings, 'jira_issues': jira_issues})
                 return MetricResult(self.key, self.label, value, self.description or 'Dynamic metric')
             except Exception as e:  # noqa: BLE001
                 return MetricResult(self.key, self.label, None, f"Dynamic error: {e}")
@@ -178,8 +239,45 @@ def add_custom_metric(
     DynamicMetric.label = label  # type: ignore[attr-defined]
     DynamicMetric.description = description  # type: ignore[attr-defined]
     DynamicMetric.expression = expression  # type: ignore[attr-defined]
+    # Tag source based on expression content
+    if 'jira_issues' in expression:
+        DynamicMetric.source = 'jira'  # type: ignore[attr-defined]
     reg.register(DynamicMetric)
     return RedirectResponse('/ui/metrics', status_code=303)
+@router.get('/jira', response_class=HTMLResponse)
+def jira_explorer(request: Request):  # noqa: D401
+    settings = get_settings()
+    if not settings.jira.enabled:
+        return templates.TemplateResponse(request, 'ui/jira.html', {
+            'enabled': False,
+            'fields': [],
+            'samples': {},
+        })
+    try:
+        from ..api.jira_client import JiraClient
+        jql = settings.jira.jql_filter or 'project = DEMO'
+        with JiraClient() as jc:
+            issues = jc.search_issues_all(jql, max_results=100)
+    except Exception:
+        issues = []
+    field_keys = []
+    samples: Dict[str, Any] = {}
+    seen = set()
+    for issue in issues:
+        fields = issue.get('fields', {})
+        for k, v in fields.items():
+            if k not in seen:
+                seen.add(k)
+                field_keys.append(k)
+                if v is not None:
+                    txt = str(v)
+                    samples[k] = (txt[:80] + '…') if len(txt) > 80 else txt
+    field_keys.sort()
+    return templates.TemplateResponse(request, 'ui/jira.html', {
+        'enabled': True,
+        'fields': field_keys,
+        'samples': samples,
+    })
 
 @router.post('/metrics/delete')
 def delete_custom_metric(request: Request, key: str = Form(...)):

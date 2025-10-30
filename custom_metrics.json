@@ -1,0 +1,1 @@
+[{"key": "jira_issue_count_dyn", "label": "Issue Count Dyn", "expression": "len(jira_issues)", "description": "Count via jira_issues"}]

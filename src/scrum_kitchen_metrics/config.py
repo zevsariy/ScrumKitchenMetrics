@@ -70,8 +70,10 @@ class EnvModel(BaseModel):
                     value = coerced
             except Exception:  # noqa: BLE001
                 value = raw
-            data_key = field.alias or name
-            data[data_key] = value
+            # Populate by alias and field name for robustness
+            if field.alias:
+                data[field.alias] = value
+            data[name] = value
         return cls.model_validate(data)
 
     model_config = {"extra": "ignore"}

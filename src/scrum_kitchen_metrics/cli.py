@@ -30,23 +30,21 @@ app = typer.Typer(help="Metrics aggregation and reporting")
 console = Console()
 
 def collect_metrics() -> List[MetricResult]:
+    """Collect metrics honoring provider enablement flags, mirroring api_server._collect."""
+    settings = get_settings()
     results: List[MetricResult] = []
     for cls in get_metric_classes():
-        settings = get_settings()
-        results: List[MetricResult] = []
-        for cls in get_metric_classes():
-            src = getattr(cls, 'source', None)
-            if src == 'jira' and not settings.jira.enabled:
-                continue
-            if src == 'gitlab' and not settings.gitlab.enabled:
-                continue
-            try:
-                metric = cls()
-                res = metric.compute()
-                results.append(res)
-            except Exception as e:  # noqa: BLE001
-                results.append(MetricResult(cls.__name__, cls.__name__, None, f"Error: {e}"))
-        return results
+        src = getattr(cls, 'source', None)
+        if src == 'jira' and not settings.jira.enabled:
+            continue
+        if src == 'gitlab' and not settings.gitlab.enabled:
+            continue
+        try:
+            metric = cls()
+            results.append(metric.compute())
+        except Exception as e:  # noqa: BLE001
+            results.append(MetricResult(cls.__name__, cls.__name__, None, f"Error: {e}"))
+    return results
 
 @app.command()
 def fetch_metrics(json_output: bool = typer.Option(False, help="Output metrics as JSON")):

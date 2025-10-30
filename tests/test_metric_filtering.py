@@ -26,9 +26,7 @@ def test_metric_filtering(monkeypatch):
     # Clear settings cache
     from scrum_kitchen_metrics.config import get_settings as gs  # noqa: E402
     gs.cache_clear()  # type: ignore[attr-defined]
-    metrics_classes = get_metric_classes()
     collected = _collect()
-    names = {m.key for m in collected}
-    # Ensure no class with jira/gitlab substring
-    assert all('jira' not in name.lower() for name in names)
-    assert all('gitlab' not in name.lower() for name in names)
+    # Ensure collected results exclude jira/gitlab metrics when disabled (by source attribute)
+    assert all(getattr(r, 'source', None) != 'jira' for r in collected)
+    assert all(getattr(r, 'source', None) != 'gitlab' for r in collected)

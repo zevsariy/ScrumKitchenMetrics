@@ -26,8 +26,29 @@ class JiraClient(BaseAPIClient):
         return {"Authorization": f"Basic {token}", "Accept": "application/json"}
 
     def search_issues(self, jql: str, fields: str = "key,summary,issuetype,status,created,resolutiondate"):  # noqa: D401
-        data = self.get_json("/rest/api/3/search", params={"jql": jql, "fields": fields, "maxResults": 1000})
+        data = self.get_json("/rest/api/3/search", params={"jql": jql, "fields": fields, "maxResults": 100})
         return data.get("issues", [])
+
+    def search_issues_all(self, jql: str, max_results: int = 500):  # noqa: D401
+        """Fetch issues with all fields using pagination (limited to max_results)."""
+        issues: List[Dict[str, Any]] = []
+        start_at = 0
+        while len(issues) < max_results:
+            remaining = max_results - len(issues)
+            batch_size = min(remaining, 100)
+            data = self.get_json(
+                "/rest/api/3/search",
+                params={"jql": jql, "fields": "*all", "startAt": start_at, "maxResults": batch_size},
+            )
+            batch = data.get("issues", [])
+            if not batch:
+                break
+            issues.extend(batch)
+            total = data.get("total", 0)
+            if start_at + batch_size >= total:
+                break
+            start_at += batch_size
+        return issues[:max_results]
 
     def get_projects(self) -> List[Dict[str, Any]]:  # noqa: D401
         return self.get_json("/rest/api/3/project")

@@ -1,0 +1,38 @@
+{% extends 'ui/base.html' %}
+{% block content %}
+<h2>Configuration</h2>
+<form method="post" action="/ui/config/save">
+  <table>
+    <tr><th>Key</th><th>Value</th></tr>
+    {% for k,v in config_values.items() %}
+    <tr>
+      <td>{{ k }}</td>
+      <td>
+        {% if k.endswith('_ENABLED') %}
+          <input type="checkbox" name="{{ k|lower }}" value="true" {% if v in [True, 'True', 'true', '1', 1] %}checked{% endif %} />
+        {% elif k == 'REPORT_FORMATS' %}
+          <input type="text" name="report_formats" value="{{ v }}" />
+        {% elif k == 'EMAIL_PROVIDER' %}
+          <select name="email_provider">
+            <option value="gmail" {% if v=='gmail' %}selected{% endif %}>gmail</option>
+            <option value="exchange" {% if v=='exchange' %}selected{% endif %}>exchange</option>
+          </select>
+        {% elif k == 'LOG_LEVEL' %}
+          <select name="log_level">
+            {% for lvl in ['DEBUG','INFO','WARNING','ERROR','CRITICAL'] %}
+              <option value="{{ lvl }}" {% if v==lvl %}selected{% endif %}>{{ lvl }}</option>
+            {% endfor %}
+          </select>
+        {% elif k == 'LOG_FORMAT' %}
+          <select name="log_format">
+            <option value="text" {% if v=='text' %}selected{% endif %}>text</option>
+            <option value="json" {% if v=='json' %}selected{% endif %}>json</option>
+          </select>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><button type="submit" class="btn">Save</button></p>
+</form>
+{% endblock %}

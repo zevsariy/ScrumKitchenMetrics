@@ -17,6 +17,7 @@ class Metric(abc.ABC):
     key: str
     label: str
     description: str | None = None
+    source: str | None = None  # e.g. 'jira', 'gitlab', 'custom'
 
     @abc.abstractmethod
     def compute(self) -> MetricResult:

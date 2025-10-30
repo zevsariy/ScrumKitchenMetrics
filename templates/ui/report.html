@@ -1,0 +1,17 @@
+{% extends 'ui/base.html' %}
+{% block content %}
+<h2>Report Editor</h2>
+<form method="post" action="/ui/report/save">
+  <h3>Template (Jinja2)</h3>
+  <textarea name="template_content" rows="18" style="width:100%;font-family:monospace;">{{ template_content|e }}</textarea>
+  <h3>Formats</h3>
+  <input type="text" name="formats" value="{{ formats }}" />
+  <h3>PDF Engine</h3>
+  <select name="pdf_engine">
+    <option value="reportlab" {% if pdf_engine=='reportlab' %}selected{% endif %}>reportlab</option>
+    <option value="weasyprint" {% if pdf_engine=='weasyprint' %}selected{% endif %}>weasyprint</option>
+  </select>
+  <p><button class="btn" type="submit">Save Report Settings</button></p>
+</form>
+<p><a class="btn" href="/ui">Back</a></p>
+{% endblock %}

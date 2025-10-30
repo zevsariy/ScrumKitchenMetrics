@@ -42,14 +42,14 @@ def _init_plugin_manager():
     if pluggy is None or _pm is not None:
         return
     _pm = pluggy.PluginManager("skm")
-
-    class MetricsSpec:
-        @staticmethod
-        def skm_register_metrics():  # noqa: D401
-            """Return an iterable of Metric subclasses to register."""
-
     _hookspec = pluggy.HookspecMarker("skm")
     _hookimpl = pluggy.HookimplMarker("skm")
+
+    class MetricsSpec:
+        @_hookspec  # type: ignore[misc]
+        def skm_register_metrics(self):  # noqa: D401
+            """Return an iterable of Metric subclasses to register."""
+
     _pm.add_hookspecs(MetricsSpec)
     _pm.load_setuptools_entrypoints("skm")
 
@@ -58,6 +58,13 @@ def _load_plugins():
         return
     _init_plugin_manager()
     if _pm is None:
+        return
+    # Feature flag gating (avoid plugin errors when disabled)
+    try:
+        from ..config import get_settings  # type: ignore
+        if not get_settings().features.plugins_enabled:
+            return
+    except Exception:  # noqa: BLE001
         return
     for metric_classes in _pm.hook.skm_register_metrics():  # type: ignore[union-attr]
         for cls in metric_classes or []:
@@ -68,8 +75,10 @@ def discover() -> None:
     if _DISCOVERED:
         return
     package = __name__.rsplit('.', 1)[0]
+    pkg_module = importlib.import_module(package)
+    pkg_path = getattr(pkg_module, '__path__', [])
     # Iterate over all modules in metrics package
-    for m in pkgutil.iter_modules(__path__):  # type: ignore[name-defined]
+    for m in pkgutil.iter_modules(pkg_path):
         name = m.name
         if name.startswith('_') or name in {"base", "registry"}:
             continue

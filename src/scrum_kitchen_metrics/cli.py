@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import List
 
@@ -32,13 +32,21 @@ console = Console()
 def collect_metrics() -> List[MetricResult]:
     results: List[MetricResult] = []
     for cls in get_metric_classes():
-        try:
-            metric = cls()
-            res = metric.compute()
-            results.append(res)
-        except Exception as e:  # noqa: BLE001
-            results.append(MetricResult(cls.__name__, cls.__name__, None, f"Error: {e}"))
-    return results
+        settings = get_settings()
+        results: List[MetricResult] = []
+        for cls in get_metric_classes():
+            src = getattr(cls, 'source', None)
+            if src == 'jira' and not settings.jira.enabled:
+                continue
+            if src == 'gitlab' and not settings.gitlab.enabled:
+                continue
+            try:
+                metric = cls()
+                res = metric.compute()
+                results.append(res)
+            except Exception as e:  # noqa: BLE001
+                results.append(MetricResult(cls.__name__, cls.__name__, None, f"Error: {e}"))
+        return results
 
 @app.command()
 def fetch_metrics(json_output: bool = typer.Option(False, help="Output metrics as JSON")):
@@ -64,13 +72,13 @@ def generate_report():
     settings = get_settings()
     res = collect_metrics()
     context = {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "app_name": settings.core.app_name,
         "metrics": res,
     }
     html = render_template(settings.report.template_name, context)
     saved_files: List[Path] = []
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     base_name = f"metrics_{ts}"
     if "PDF" in settings.report.formats:
         pdf_path = settings.report.output_dir / f"{base_name}.pdf"

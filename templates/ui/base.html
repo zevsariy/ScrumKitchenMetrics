@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ title or 'ScrumKitchenMetrics UI' }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0 0 40px; background:#f7f7f9; }
+    header { background:#263238; color:#fff; padding:12px 20px; }
+    nav a { color:#fff; margin-right:15px; text-decoration:none; }
+    .container { max-width:1200px; margin:20px auto; background:#fff; padding:20px 28px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,.08); }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:6px 8px; border-bottom:1px solid #ddd; text-align:left; }
+    th { background:#eceff1; }
+    .btn { display:inline-block; padding:6px 12px; background:#1976d2; color:#fff; border-radius:4px; text-decoration:none; font-size:14px; }
+    .btn-danger { background:#d32f2f; }
+    .badge { padding:2px 6px; border-radius:3px; font-size:11px; background:#546e7a; color:#fff; }
+    form.inline { display:inline; }
+    footer { position:fixed; bottom:0; left:0; width:100%; background:#eceff1; font-size:12px; padding:4px 10px; }
+    input[type=text] { padding:4px 6px; }
+    .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); }
+    .card { border:1px solid #e0e0e0; border-radius:6px; padding:12px 14px; background:#fafafa; }
+    .card h3 { margin-top:0; font-size:15px; }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/ui">Dashboard</a>
+      <a href="/ui/metrics">Metrics</a>
+      <a href="/ui/config">Config</a>
+      <a href="/ui/report">Report</a>
+    </nav>
+  </header>
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+  <footer>
+    ScrumKitchenMetrics UI · Local only · {{ app_name if app_name else '' }}
+  </footer>
+</body>
+</html>

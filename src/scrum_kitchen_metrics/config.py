@@ -5,23 +5,40 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import BaseSettings, Field, validator
+import os
+from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
 
-# Load .env automatically if present
-load_dotenv()
+# Load base .env then overrides.env if exists
+load_dotenv(dotenv_path=Path('.env'), override=False)
+if Path('overrides.env').exists():
+    load_dotenv(dotenv_path=Path('overrides.env'), override=True)
 
-class CoreSettings(BaseSettings):
+class EnvModel(BaseModel):
+    """Base model with helper to construct from environment variables using field aliases."""
+
+    @classmethod
+    def from_env(cls):
+        data = {}
+        for name, field in cls.model_fields.items():  # type: ignore[attr-defined]
+            env_name = field.alias or name
+            if env_name in os.environ:
+                data[name] = os.environ[env_name]
+        return cls(**data)
+
+    model_config = {"extra": "ignore"}
+
+
+class CoreSettings(EnvModel):
     app_name: str = Field("ScrumKitchenMetrics", alias="APP_NAME")
     app_env: str = Field("development", alias="APP_ENV")
     log_level: str = Field("INFO", alias="LOG_LEVEL")
     log_format: str = Field("text", alias="LOG_FORMAT")  # text | json
     timezone: str = Field("UTC", alias="TIMEZONE")
 
-    class Config:
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
-class JiraSettings(BaseSettings):
+class JiraSettings(EnvModel):
     enabled: bool = Field(False, alias="JIRA_ENABLED")
     base_url: Optional[str] = Field(None, alias="JIRA_BASE_URL")
     api_token: Optional[str] = Field(None, alias="JIRA_API_TOKEN")
@@ -29,56 +46,58 @@ class JiraSettings(BaseSettings):
     jql_filter: str = Field("", alias="JIRA_JQL_FILTER")
     verify_ssl: bool = Field(True, alias="JIRA_VERIFY_SSL")
 
-    @validator("base_url", pre=True)
+    @field_validator("base_url", mode="before")
     def strip_slash(cls, v):  # noqa: D401
         if isinstance(v, str):
             return v.rstrip('/')
         return v
 
-    class Config:
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
-class GitLabSettings(BaseSettings):
+class GitLabSettings(EnvModel):
     enabled: bool = Field(False, alias="GITLAB_ENABLED")
     base_url: Optional[str] = Field(None, alias="GITLAB_BASE_URL")
     private_token: Optional[str] = Field(None, alias="GITLAB_PRIVATE_TOKEN")
-    project_ids: List[int] = Field(default_factory=list, alias="GITLAB_PROJECT_IDS")
     verify_ssl: bool = Field(True, alias="GITLAB_VERIFY_SSL")
-
-    @validator("project_ids", pre=True)
-    def parse_ids(cls, v):  # noqa: D401
-        if not v:
+    @property
+    def project_ids(self) -> List[int]:  # noqa: D401
+        val = os.environ.get('GITLAB_PROJECT_IDS')
+        if not val:
             return []
-        if isinstance(v, str):
-            return [int(x.strip()) for x in v.split(',') if x.strip()]
-        return v
+        text = val.strip()
+        if text.startswith('[') and text.endswith(']'):
+            import json
+            try:
+                arr = json.loads(text)
+                return [int(x) for x in arr]
+            except Exception:  # noqa: BLE001
+                return []
+        return [int(x.strip()) for x in text.split(',') if x.strip()]
 
-    @validator("base_url", pre=True)
+    @field_validator("base_url", mode="before")
     def strip_slash(cls, v):  # noqa: D401
         if isinstance(v, str):
             return v.rstrip('/')
         return v
 
-    class Config:
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
-class ReportSettings(BaseSettings):
+class ReportSettings(EnvModel):
     output_dir: Path = Field(Path("reports"), alias="REPORT_OUTPUT_DIR")
     formats: List[str] = Field(default_factory=lambda: ["PDF", "XLSX"], alias="REPORT_FORMATS")
     template_dir: Path = Field(Path("templates"), alias="TEMPLATE_DIR")
     template_name: str = Field("summary.html.j2", alias="REPORT_TEMPLATE")
     pdf_engine: str = Field("reportlab", alias="REPORT_PDF_ENGINE")  # reportlab | weasyprint
 
-    @validator("formats", pre=True)
+    @field_validator("formats", mode="before")
     def split_formats(cls, v):  # noqa: D401
         if isinstance(v, str):
             return [x.strip().upper() for x in v.split(',') if x.strip()]
         return v
 
-    class Config:
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
-class EmailSettings(BaseSettings):
+class EmailSettings(EnvModel):
     enabled: bool = Field(False, alias="EMAIL_ENABLED")
     provider: str = Field("gmail", alias="EMAIL_PROVIDER")  # gmail | exchange
     subject_prefix: str = Field("[Metrics]", alias="EMAIL_SUBJECT_PREFIX")
@@ -99,23 +118,21 @@ class EmailSettings(BaseSettings):
     exchange_user: Optional[str] = Field(None, alias="EXCHANGE_USER")
     exchange_password: Optional[str] = Field(None, alias="EXCHANGE_PASSWORD")
 
-    @validator("to", pre=True)
+    @field_validator("to", mode="before")
     def parse_recipients(cls, v):  # noqa: D401
         if isinstance(v, str):
             return [x.strip() for x in v.split(',') if x.strip()]
         return v
 
-    class Config:
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
-class SchedulerSettings(BaseSettings):
+class SchedulerSettings(EnvModel):
     enabled: bool = Field(False, alias="SCHEDULER_ENABLED")
     cron: str = Field("0 8 * * 1-5", alias="SCHEDULER_CRON")
 
-    class Config:
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
-class NetworkSettings(BaseSettings):
+class NetworkSettings(EnvModel):
     http_timeout: int = Field(30, alias="HTTP_TIMEOUT")
     http_retries: int = Field(3, alias="HTTP_RETRIES")
     proxy_url: Optional[str] = Field(None, alias="PROXY_URL")
@@ -123,42 +140,49 @@ class NetworkSettings(BaseSettings):
     cache_ttl: int = Field(300, alias="CACHE_TTL")
     cache_dir: Path = Field(Path(".api_cache"), alias="CACHE_DIR")
 
-    class Config:
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
-class FeatureFlags(BaseSettings):
+class FeatureFlags(EnvModel):
     include_cycle_time: bool = Field(True, alias="FEATURE_INCLUDE_CYCLE_TIME")
     include_bug_ratio: bool = Field(True, alias="FEATURE_INCLUDE_BUG_RATIO")
     include_deploy_frequency: bool = Field(True, alias="FEATURE_INCLUDE_DEPLOY_FREQUENCY")
     plugins_enabled: bool = Field(False, alias="PLUGINS_ENABLED")
 
-class APIServerSettings(BaseSettings):
+class APIServerSettings(EnvModel):
     host: str = Field("0.0.0.0", alias="API_HOST")
     port: int = Field(8000, alias="API_PORT")
     enabled: bool = Field(False, alias="API_ENABLED")
 
-    class Config:
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
-class Settings(BaseSettings):
-    core: CoreSettings = CoreSettings()
-    jira: JiraSettings = JiraSettings()
-    gitlab: GitLabSettings = GitLabSettings()
-    report: ReportSettings = ReportSettings()
-    email: EmailSettings = EmailSettings()
-    scheduler: SchedulerSettings = SchedulerSettings()
-    network: NetworkSettings = NetworkSettings()
-    features: FeatureFlags = FeatureFlags()
-    api: APIServerSettings = APIServerSettings()
+class Settings(BaseModel):
+    core: CoreSettings
+    jira: JiraSettings
+    gitlab: GitLabSettings
+    report: ReportSettings
+    email: EmailSettings
+    scheduler: SchedulerSettings
+    network: NetworkSettings
+    features: FeatureFlags
+    api: APIServerSettings
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"
+    model_config = {"extra": "ignore"}
 
+def _build_settings() -> Settings:
+    return Settings(
+        core=CoreSettings.from_env(),
+        jira=JiraSettings.from_env(),
+        gitlab=GitLabSettings.from_env(),
+        report=ReportSettings.from_env(),
+        email=EmailSettings.from_env(),
+        scheduler=SchedulerSettings.from_env(),
+        network=NetworkSettings.from_env(),
+        features=FeatureFlags.from_env(),
+        api=APIServerSettings.from_env(),
+    )
 @lru_cache()
 def get_settings() -> Settings:
-    settings = Settings()  # type: ignore[arg-type]
+    settings = _build_settings()
     # ensure output directories exist
     settings.report.output_dir.mkdir(parents=True, exist_ok=True)
     settings.report.template_dir.mkdir(parents=True, exist_ok=True)
@@ -181,4 +205,11 @@ def get_settings() -> Settings:
 __all__ = [
     "Settings",
     "get_settings",
+    "_build_settings",
+    "refresh_settings",
 ]
+
+def refresh_settings() -> Settings:  # noqa: D401
+    """Clear cached settings and rebuild."""
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    return get_settings()

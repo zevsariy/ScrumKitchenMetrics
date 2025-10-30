@@ -12,6 +12,7 @@ from ..config import get_settings
 class JiraIssueCountMetric(Metric):
     key = "jira_issue_count"
     label = "JIRA Issues Count"
+    source = "jira"
 
     def compute(self) -> MetricResult:  # noqa: D401
         settings = get_settings().jira
@@ -23,6 +24,7 @@ class JiraIssueCountMetric(Metric):
 class JiraAverageCycleTimeMetric(Metric):
     key = "jira_cycle_time_avg"
     label = "Average Cycle Time (days)"
+    source = "jira"
 
     def compute(self) -> MetricResult:  # noqa: D401
         settings = get_settings().jira

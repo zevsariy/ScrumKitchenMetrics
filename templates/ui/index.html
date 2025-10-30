@@ -1,0 +1,45 @@
+{% extends 'ui/base.html' %}
+{% block content %}
+<h2>Dashboard</h2>
+<div class="grid">
+  <div class="card">
+    <h3>Actions</h3>
+    <form method="post" action="/ui/action/generate" class="inline"><button class="btn" type="submit">Generate Report</button></form>
+    {% if settings.email.enabled %}
+    <form method="post" action="/ui/action/send" class="inline"><button class="btn" type="submit">Send Email</button></form>
+    {% else %}<span class="badge">Email disabled</span>{% endif %}
+  </div>
+  <div class="card">
+    <h3>Config Summary</h3>
+    <div>JIRA: {{ 'ON' if settings.jira.enabled else 'off' }}</div>
+    <div>GitLab: {{ 'ON' if settings.gitlab.enabled else 'off' }}</div>
+    <div>Formats: {{ settings.report.formats }}</div>
+    <div>Email: {{ settings.email.provider if settings.email.enabled else 'disabled' }}</div>
+  </div>
+  <div class="card">
+    <h3>Recent PDF</h3>
+    <ul>
+      {% for f in pdfs %}<li><a href="/{{ f }}" download>{{ f.name }}</a></li>{% else %}<li>No PDFs</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Recent XLSX</h3>
+    <ul>
+      {% for f in xlsxs %}<li><a href="/{{ f }}" download>{{ f.name }}</a></li>{% else %}<li>No XLSX</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+
+<h3>Metrics Snapshot</h3>
+<table>
+  <tr><th>Key</th><th>Label</th><th>Value</th><th>Description</th></tr>
+  {% for m in metrics %}
+  <tr>
+    <td>{{ m.key }}</td>
+    <td>{{ m.label }}</td>
+    <td>{{ m.value }}</td>
+    <td>{{ m.description }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

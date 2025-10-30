@@ -10,6 +10,7 @@ from ..config import get_settings
 class GitLabProjectsCountMetric(Metric):
     key = "gitlab_projects_count"
     label = "GitLab Projects Count"
+    source = "gitlab"
 
     def compute(self) -> MetricResult:  # noqa: D401
         client = GitLabClient()
@@ -19,6 +20,7 @@ class GitLabProjectsCountMetric(Metric):
 class GitLabMergeRequestThroughputMetric(Metric):
     key = "gitlab_mr_throughput"
     label = "GitLab MR Throughput (recent)"
+    source = "gitlab"
 
     def compute(self) -> MetricResult:  # noqa: D401
         if not get_settings().features.include_deploy_frequency:

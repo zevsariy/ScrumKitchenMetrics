@@ -1,0 +1,28 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{ app_name }} Report</title>
+    <style>
+      body { font-family: Arial, sans-serif; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border:1px solid #ccc; padding:4px 6px; font-size: 12px; }
+      th { background:#f0f0f0; }
+      h1 { font-size:20px; }
+    </style>
+  </head>
+  <body>
+    <h1>{{ app_name }} Metrics Report</h1>
+    <p>Generated at: {{ generated_at }}</p>
+    <table>
+      <tr><th>Key</th><th>Label</th><th>Value</th><th>Description</th></tr>
+      {% for m in metrics %}
+      <tr>
+        <td>{{ m.key }}</td>
+        <td>{{ m.label }}</td>
+        <td>{{ m.value }}</td>
+        <td>{{ m.description }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>

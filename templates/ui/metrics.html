@@ -1,0 +1,53 @@
+{% extends 'ui/base.html' %}
+{% block content %}
+<h2>Metrics</h2>
+<p>Toggle metrics (disabled ones не будут вычисляться — пример реализован через DISABLED_METRICS).</p>
+<table>
+  <tr><th>Key</th><th>Class</th><th>State</th><th>Action</th></tr>
+  {% for cls in metrics %}
+  {% set disabled_state = (cls.key in disabled) %}
+  <tr>
+    <td>{{ cls.key }}</td>
+    <td>{{ cls.__name__ }}</td>
+    <td>{% if disabled_state %}<span class="badge">disabled</span>{% else %}active{% endif %}</td>
+    <td>
+      <form method="post" action="/ui/metrics/toggle" class="inline">
+        <input type="hidden" name="key" value="{{ cls.key }}" />
+        <button class="btn {% if not disabled_state %}btn-danger{% endif %}" type="submit">{% if disabled_state %}Enable{% else %}Disable{% endif %}</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+<h3>Add Custom Metric</h3>
+<form method="post" action="/ui/metrics/add">
+  <table>
+    <tr><td>Key</td><td><input type="text" name="key" required /></td></tr>
+    <tr><td>Label</td><td><input type="text" name="label" required /></td></tr>
+    <tr><td>Expression</td><td><input type="text" name="expression" placeholder="len(settings.report.formats)" required style="width:100%;" /></td></tr>
+    <tr><td>Description</td><td><input type="text" name="description" /></td></tr>
+  </table>
+  <p><button class="btn" type="submit">Add</button></p>
+</form>
+
+<h3>Custom Metrics</h3>
+<table>
+  <tr><th>Key</th><th>Label</th><th>Expression</th><th>Description</th><th>Action</th></tr>
+  {% for m in custom_specs %}
+  <tr>
+    <td>{{ m.key }}</td>
+    <td>{{ m.label }}</td>
+    <td><code>{{ m.expression }}</code></td>
+    <td>{{ m.description }}</td>
+    <td>
+      <form method="post" action="/ui/metrics/delete" class="inline">
+        <input type="hidden" name="key" value="{{ m.key }}" />
+        <button class="btn btn-danger" type="submit">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">No custom metrics</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

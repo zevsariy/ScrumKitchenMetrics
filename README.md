@@ -175,6 +175,18 @@ uvicorn scrum_kitchen_metrics.api_server:app --reload
 
 `LOG_FORMAT=json` переключает формат логов на JSON.
 
+## Авто-парсинг типов окружения
+
+Конфиг парсит базовые типы автоматически:
+- bool: значения `true/false/on/off/1/0/yes/no` (регистр не важен)
+- int: целочисленные значения
+- List[str] / List[int]: либо JSON массив (`[123,456]`), либо CSV (`123,456`) – пример для `GITLAB_PROJECT_IDS`:
+	- `GITLAB_PROJECT_IDS=[12345,67890]`
+	- `GITLAB_PROJECT_IDS=12345,67890`
+- Path: значения преобразуются в `Path`
+
+Это позволяет гибко задавать списки без строгой привязки к JSON.
+
 ## Плагины метрик
 
 При `PLUGINS_ENABLED=true` можно публиковать пакет с entry point:

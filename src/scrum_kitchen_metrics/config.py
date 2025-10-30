@@ -15,16 +15,64 @@ if Path('overrides.env').exists():
     load_dotenv(dotenv_path=Path('overrides.env'), override=True)
 
 class EnvModel(BaseModel):
-    """Base model with helper to construct from environment variables using field aliases."""
+    """Base model with helper to construct from environment variables using field aliases.
+
+    Performs light type coercion:
+      - bool fields: recognize true/false/on/off/1/0 (case-insensitive)
+      - int fields: parse int
+      - list[str]/list[int]: accept JSON array or comma-separated values
+      - Path fields: create Path
+    """
 
     @classmethod
-    def from_env(cls):
+    def from_env(cls):  # noqa: D401
         data = {}
         for name, field in cls.model_fields.items():  # type: ignore[attr-defined]
             env_name = field.alias or name
-            if env_name in os.environ:
-                data[name] = os.environ[env_name]
-        return cls(**data)
+            if env_name not in os.environ:
+                continue
+            raw = os.environ[env_name]
+            target_type = field.annotation
+            value = raw
+            try:
+                origin = getattr(target_type, '__origin__', None)
+                if target_type is bool:
+                    lowered = raw.lower()
+                    value = lowered in {'true', '1', 'on', 'yes', 'y'}
+                elif target_type is int:
+                    value = int(raw)
+                elif target_type is Path:
+                    value = Path(raw)
+                elif origin is list or (str(target_type).startswith('typing.List') or str(target_type).startswith('list[')):
+                    args = getattr(target_type, '__args__', [])
+                    inner = args[0] if args else str
+                    txt = raw.strip()
+                    if txt.startswith('[') and txt.endswith(']'):
+                        import json
+                        try:
+                            arr = json.loads(txt)
+                        except Exception:  # noqa: BLE001
+                            arr = []
+                        if not isinstance(arr, list):
+                            arr = []
+                        items = arr
+                    else:
+                        items = [x.strip() for x in txt.split(',') if x.strip()]
+                    coerced = []
+                    for it in items:
+                        if inner is int:
+                            try:
+                                coerced.append(int(it))
+                            except Exception:  # noqa: BLE001
+                                continue
+                        else:
+                            coerced.append(str(it))
+                    value = coerced
+            except Exception:  # noqa: BLE001
+                value = raw
+            data_key = field.alias or name
+            data[data_key] = value
+        return cls.model_validate(data)
 
     model_config = {"extra": "ignore"}
 
@@ -59,20 +107,24 @@ class GitLabSettings(EnvModel):
     base_url: Optional[str] = Field(None, alias="GITLAB_BASE_URL")
     private_token: Optional[str] = Field(None, alias="GITLAB_PRIVATE_TOKEN")
     verify_ssl: bool = Field(True, alias="GITLAB_VERIFY_SSL")
-    @property
-    def project_ids(self) -> List[int]:  # noqa: D401
-        val = os.environ.get('GITLAB_PROJECT_IDS')
-        if not val:
-            return []
-        text = val.strip()
-        if text.startswith('[') and text.endswith(']'):
-            import json
-            try:
-                arr = json.loads(text)
-                return [int(x) for x in arr]
-            except Exception:  # noqa: BLE001
-                return []
-        return [int(x.strip()) for x in text.split(',') if x.strip()]
+    project_ids: List[int] = Field(default_factory=list, alias="GITLAB_PROJECT_IDS")
+
+    @field_validator("project_ids", mode="before")
+    def parse_project_ids(cls, v):  # noqa: D401
+        if isinstance(v, list):
+            return [int(x) for x in v]
+        if isinstance(v, str):
+            txt = v.strip()
+            if txt.startswith('[') and txt.endswith(']'):
+                import json
+                try:
+                    arr = json.loads(txt)
+                    if isinstance(arr, list):
+                        return [int(x) for x in arr]
+                except Exception:  # noqa: BLE001
+                    return []
+            return [int(x.strip()) for x in txt.split(',') if x.strip()]
+        return []
 
     @field_validator("base_url", mode="before")
     def strip_slash(cls, v):  # noqa: D401

@@ -112,8 +112,7 @@ def dashboard(request: Request):  # noqa: D401
     reports_dir.mkdir(exist_ok=True, parents=True)
     pdfs = sorted(reports_dir.glob('metrics_*.pdf'))[-5:]
     xlsxs = sorted(reports_dir.glob('metrics_*.xlsx'))[-5:]
-    return templates.TemplateResponse('ui/index.html', {
-        'request': request,
+    return templates.TemplateResponse(request, 'ui/index.html', {
         'settings': settings,
         'metrics': metrics,
         'pdfs': list(reversed(pdfs)),
@@ -126,8 +125,7 @@ def metrics_page(request: Request):  # noqa: D401
     overrides = _read_overrides()
     disabled = set(overrides.get('DISABLED_METRICS', '').split(',')) if overrides.get('DISABLED_METRICS') else set()
     custom_specs = _load_custom_metrics()
-    return templates.TemplateResponse('ui/metrics.html', {
-        'request': request,
+    return templates.TemplateResponse(request, 'ui/metrics.html', {
         'metrics': classes,
         'disabled': disabled,
         'custom_specs': custom_specs,
@@ -203,8 +201,7 @@ def report_editor(request: Request):  # noqa: D401
     else:
         content = '<html><body><h2>{{ app_name }} Metrics</h2></body></html>'
     overrides = _read_overrides()
-    return templates.TemplateResponse('ui/report.html', {
-        'request': request,
+    return templates.TemplateResponse(request, 'ui/report.html', {
         'template_content': content,
         'formats': ','.join(settings.report.formats),
         'pdf_engine': overrides.get('REPORT_PDF_ENGINE', settings.report.pdf_engine),
@@ -249,8 +246,7 @@ def config_page(request: Request):  # noqa: D401
     }
     for k in editable_keys:
         current[k] = overrides.get(k, env_map[k])
-    return templates.TemplateResponse('ui/config.html', {
-        'request': request,
+    return templates.TemplateResponse(request, 'ui/config.html', {
         'config_values': current,
     })
 

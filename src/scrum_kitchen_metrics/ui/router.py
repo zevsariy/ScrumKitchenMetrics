@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from ..config import get_settings
 from ..metrics.registry import get_metric_classes, register as register_metric
+from ..metrics.jira_changelog_custom import reload_custom_changelog_metrics
 from ..reporting.pdf_exporter import html_to_pdf
 from ..reporting.xlsx_exporter import metrics_to_xlsx
 from ..reporting.renderer import render_template
@@ -43,6 +44,7 @@ def _write_overrides(mapping: dict):
     Path('overrides.env').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 CUSTOM_METRICS_FILE = Path(os.getenv('CUSTOM_METRICS_FILE', 'custom_metrics.json'))
+CHANGELOG_METRICS_FILE = Path(os.getenv('CUSTOM_JIRA_CHANGELOG_METRICS_FILE', 'custom_jira_changelog_metrics.json'))
 
 def _load_custom_metrics() -> List[Dict[str, Any]]:
     if not CUSTOM_METRICS_FILE.exists():
@@ -59,6 +61,24 @@ def _load_custom_metrics() -> List[Dict[str, Any]]:
 def _save_custom_metrics(metrics: List[Dict[str, Any]]):
     import json
     CUSTOM_METRICS_FILE.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding='utf-8')
+
+
+def _load_changelog_metrics() -> List[Dict[str, Any]]:
+    if not CHANGELOG_METRICS_FILE.exists():
+        return []
+    import json
+    try:
+        data = json.loads(CHANGELOG_METRICS_FILE.read_text(encoding='utf-8'))
+        if isinstance(data, list):
+            return data
+    except Exception:  # noqa: BLE001
+        return []
+    return []
+
+
+def _save_changelog_metrics(metrics: List[Dict[str, Any]]):
+    import json
+    CHANGELOG_METRICS_FILE.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding='utf-8')
 
 def _safe_eval(expr: str, variables: Dict[str, Any]) -> Any:
     # Базовые ограничения на размер и сложность выражения
@@ -180,10 +200,12 @@ def metrics_page(request: Request):  # noqa: D401
     overrides = _read_overrides()
     disabled = set(overrides.get('DISABLED_METRICS', '').split(',')) if overrides.get('DISABLED_METRICS') else set()
     custom_specs = _load_custom_metrics()
+    changelog_specs = _load_changelog_metrics()
     return templates.TemplateResponse(request, 'ui/metrics.html', {
         'metrics': classes,
         'disabled': disabled,
         'custom_specs': custom_specs,
+        'changelog_specs': changelog_specs,
     })
 
 @router.post('/metrics/toggle')
@@ -243,6 +265,57 @@ def add_custom_metric(
     if 'jira_issues' in expression:
         DynamicMetric.source = 'jira'  # type: ignore[attr-defined]
     reg.register(DynamicMetric)
+    return RedirectResponse('/ui/metrics', status_code=303)
+
+
+def _split_statuses(raw: str) -> List[str]:
+    parts = [p.strip() for p in raw.replace(';', ',').split(',')]
+    return [p for p in parts if p]
+
+
+@router.post('/metrics/changelog/add')
+def add_changelog_metric(
+    request: Request,
+    key: str = Form(...),
+    label: str = Form(...),
+    jql: str = Form(...),
+    from_statuses: str = Form(...),
+    to_statuses: str = Form(...),
+    aggregation: str = Form('avg'),
+    unit: str = Form('days'),
+    description: str = Form(''),
+    max_results: str = Form('200'),
+):
+    specs = _load_changelog_metrics()
+    if any(s.get('key') == key for s in specs):
+        return RedirectResponse('/ui/metrics', status_code=303)
+    try:
+        max_results_int = max(1, int(max_results))
+    except ValueError:
+        max_results_int = 200
+    spec = {
+        'key': key.strip(),
+        'label': label.strip() or key.strip(),
+        'jql': jql.strip(),
+        'from_statuses': _split_statuses(from_statuses),
+        'to_statuses': _split_statuses(to_statuses),
+        'aggregation': aggregation.strip() or 'avg',
+        'unit': unit.strip() or 'days',
+        'description': description.strip() if description else '',
+        'max_results': max_results_int,
+    }
+    specs.append(spec)
+    _save_changelog_metrics(specs)
+    reload_custom_changelog_metrics()
+    return RedirectResponse('/ui/metrics', status_code=303)
+
+
+@router.post('/metrics/changelog/delete')
+def delete_changelog_metric(request: Request, key: str = Form(...)):
+    specs = _load_changelog_metrics()
+    specs = [s for s in specs if s.get('key') != key]
+    _save_changelog_metrics(specs)
+    reload_custom_changelog_metrics()
     return RedirectResponse('/ui/metrics', status_code=303)
 @router.get('/jira', response_class=HTMLResponse)
 def jira_explorer(request: Request):  # noqa: D401

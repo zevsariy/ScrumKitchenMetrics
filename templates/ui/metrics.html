@@ -50,4 +50,63 @@
   <tr><td colspan="5">No custom metrics</td></tr>
   {% endfor %}
 </table>
+
+<h3>JIRA Changelog Metrics</h3>
+<p>Настройте метрики на основе переходов между статусами (changelog). Будут созданы отдельные классы метрик с автоматическим расчётом lead/cycle time.</p>
+<form method="post" action="/ui/metrics/changelog/add">
+  <table>
+    <tr><td>Key</td><td><input type="text" name="key" required /></td></tr>
+    <tr><td>Label</td><td><input type="text" name="label" required /></td></tr>
+    <tr><td>JQL</td><td><input type="text" name="jql" placeholder="project = DEMO" required style="width:100%;" /></td></tr>
+    <tr><td>From statuses</td><td><input type="text" name="from_statuses" placeholder="Discovery,In Analysis" required /></td></tr>
+    <tr><td>To statuses</td><td><input type="text" name="to_statuses" placeholder="In Progress,Done" required /></td></tr>
+    <tr><td>Aggregation</td>
+      <td>
+        <select name="aggregation">
+          <option value="avg">avg</option>
+          <option value="median">median</option>
+          <option value="p75">p75</option>
+          <option value="p90">p90</option>
+          <option value="max">max</option>
+          <option value="min">min</option>
+        </select>
+      </td>
+    </tr>
+    <tr><td>Unit</td>
+      <td>
+        <select name="unit">
+          <option value="days">days</option>
+          <option value="hours">hours</option>
+        </select>
+      </td>
+    </tr>
+    <tr><td>Max results</td><td><input type="number" name="max_results" value="200" min="1" max="1000" /></td></tr>
+    <tr><td>Description</td><td><input type="text" name="description" /></td></tr>
+  </table>
+  <p><button class="btn" type="submit">Add changelog metric</button></p>
+</form>
+
+<table>
+  <tr><th>Key</th><th>Label</th><th>JQL</th><th>Statuses</th><th>Aggregation</th><th>Unit</th><th>Max</th><th>Description</th><th>Action</th></tr>
+  {% for m in changelog_specs %}
+  <tr>
+    <td>{{ m.key }}</td>
+    <td>{{ m.label }}</td>
+    <td><code>{{ m.jql }}</code></td>
+    <td>from: {{ m.from_statuses }}<br/>to: {{ m.to_statuses }}</td>
+    <td>{{ m.aggregation }}</td>
+    <td>{{ m.unit }}</td>
+    <td>{{ m.max_results }}</td>
+    <td>{{ m.description }}</td>
+    <td>
+      <form method="post" action="/ui/metrics/changelog/delete" class="inline">
+        <input type="hidden" name="key" value="{{ m.key }}" />
+        <button class="btn btn-danger" type="submit">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9">No changelog metrics</td></tr>
+  {% endfor %}
+</table>
 {% endblock %}

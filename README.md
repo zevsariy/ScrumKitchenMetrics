@@ -227,6 +227,49 @@ reload_dynamic_metrics()
 
 Такие ограничения уменьшают риск сложных / злоумышленных конструкций. Для продвинутой логики добавляйте полноценные классы метрик в код.
 
+## JIRA Sprint Metrics
+
+Для мониторинга спринтов реализован сервис `services/jira_sprint_metrics.JiraSprintMetricsService`, который использует Agile API JIRA (boards/sprints/reports), подтягивает детальные данные задач, changelog и worklog, а затем агрегирует показатели. Метрики в `metrics/jira_sprint_metrics.py` строятся на этих данных и возвращают обогащённые словари (значение, единицы измерения, детали, пояснение), которые можно напрямую выводить в отчёты или UI.
+
+Доступные метрики:
+
+- `jira_t2m` — Time-to-Market: среднее время от создания задач до достижения статуса из списка завершения.
+- `jira_lead_time_delivery` — Lead Time по delivery: от первого статуса из `JIRA_DELIVERY_START_STATUSES` до финального статуса.
+- `jira_lead_time_discovery` — Lead Time discovery: от статуса из `JIRA_DISCOVERY_STATUSES` до начала delivery.
+- `jira_spillover_ratio` — Доля невыполненных задач и story points от запланированных.
+- `jira_sprint_plan_fact` — Таблица план/факт по задачам, story points, scope changes и списанным часам.
+- `jira_velocity_trend` — Ряд velocity по завершённым story points (удобно строить графики).
+- `jira_sprint_overview` — Сводка по последним спринтам с детальными данными.
+- `jira_team_progress` — Разбивка прогресса по командам (кол-во задач, story points, списанные часы).
+
+### Настройка окружения JIRA для спринтов
+
+Добавлены переменные среды (см. `.env.example`):
+
+| Переменная | Назначение |
+|------------|-----------|
+| `JIRA_BOARD_IDS` | Список ID досок (Agile board) для анализа.
+| `JIRA_SPRINT_LOOKBACK` | Сколько последних спринтов анализировать для каждой доски.
+| `JIRA_STORY_POINTS_FIELD` | Ключ поля story points (по умолчанию `customfield_story_points`).
+| `JIRA_DISCOVERY_STATUSES` | Статусы discovery-этапа для расчёта lead time discovery.
+| `JIRA_DELIVERY_START_STATUSES` / `JIRA_DELIVERY_END_STATUSES` | Стартовые и финальные статусы delivery-части.
+| `JIRA_ACTIVE_STATUS_CATEGORIES` / `JIRA_DONE_STATUS_CATEGORIES` | Категории статусов (группировка для адаптации).
+| `JIRA_TEAM_CUSTOM_FIELD` | Ключ кастомного поля команды (если требуется агрегировать по командам).
+Сервис `JiraSprintMetricsService` предоставляет метод `fetch_recent_sprint_summaries()` и набор `compute_*`. Каждый метод возвращает словарь формата:
+
+```json
+{
+	"value": <основной агрегат>,
+	"unit": "days|ratio|story_points|table|teams|sprints",
+	"details": <список или словарь для UI/отчётов>,
+	"note": "краткое пояснение"
+}
+```
+
+При необходимости можно расширить расчёты (например, добавить пропускные фильтры по типам задач или анализ SLA) — достаточно унаследовать сервис или адаптировать возвращаемые данные перед выводом.
+
+Для быстрого ознакомления с форматом ответа сохранён пример JSON: `docs/samples/jira_sprint_metrics_sample.json`.
+
 ## Плагины метрик
 
 При `PLUGINS_ENABLED=true` можно публиковать пакет с entry point:

@@ -95,12 +95,40 @@ class JiraSettings(EnvModel):
     user_email: Optional[str] = Field(None, alias="JIRA_USER_EMAIL")
     jql_filter: str = Field("", alias="JIRA_JQL_FILTER")
     verify_ssl: bool = Field(True, alias="JIRA_VERIFY_SSL")
+    board_ids: List[int] = Field(default_factory=list, alias="JIRA_BOARD_IDS")
+    sprint_lookback: int = Field(3, alias="JIRA_SPRINT_LOOKBACK")
+    story_points_field: str = Field("customfield_story_points", alias="JIRA_STORY_POINTS_FIELD")
+    discovery_statuses: List[str] = Field(default_factory=lambda: ["Discovery"], alias="JIRA_DISCOVERY_STATUSES")
+    delivery_start_statuses: List[str] = Field(default_factory=lambda: ["In Progress"], alias="JIRA_DELIVERY_START_STATUSES")
+    delivery_end_statuses: List[str] = Field(default_factory=lambda: ["Done", "Closed"], alias="JIRA_DELIVERY_END_STATUSES")
+    active_status_categories: List[str] = Field(default_factory=lambda: ["To Do", "In Progress"], alias="JIRA_ACTIVE_STATUS_CATEGORIES")
+    done_status_categories: List[str] = Field(default_factory=lambda: ["Done"], alias="JIRA_DONE_STATUS_CATEGORIES")
+    team_custom_field: Optional[str] = Field(None, alias="JIRA_TEAM_CUSTOM_FIELD")
 
     @field_validator("base_url", mode="before")
     def strip_slash(cls, v):  # noqa: D401
         if isinstance(v, str):
             return v.rstrip('/')
         return v
+
+    @field_validator("board_ids", mode="before")
+    def parse_board_ids(cls, v):  # noqa: D401
+        if isinstance(v, list):
+            return [int(x) for x in v]
+        if isinstance(v, str):
+            txt = v.strip()
+            if not txt:
+                return []
+            if txt.startswith('[') and txt.endswith(']'):
+                import json
+                try:
+                    arr = json.loads(txt)
+                    if isinstance(arr, list):
+                        return [int(x) for x in arr]
+                except Exception:  # noqa: BLE001
+                    return []
+            return [int(x.strip()) for x in txt.split(',') if x.strip()]
+        return []
 
     model_config = {"extra": "ignore"}
 

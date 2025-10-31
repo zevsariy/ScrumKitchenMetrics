@@ -1,0 +1,256 @@
+{
+  "generated_at": "2024-01-15T10:00:00Z",
+  "board_ids": [1],
+  "metrics": {
+    "jira_t2m": {
+      "value": 12.33,
+      "unit": "days",
+      "note": "T2M вычисляется как время от создания до завершения задачи.",
+      "details": [
+        {
+          "board_id": 1,
+          "sprint_id": 101,
+          "sprint": "Sprint 1",
+          "issue": "PROJ-1",
+          "team": "Team Rocket",
+          "time_to_market_days": 12.33
+        }
+      ]
+    },
+    "jira_lead_time_delivery": {
+      "value": 9.38,
+      "unit": "days",
+      "note": "Delivery lead time между стартом и окончанием доставки.",
+      "details": [
+        {
+          "board_id": 1,
+          "sprint_id": 101,
+          "sprint": "Sprint 1",
+          "issue": "PROJ-1",
+          "team": "Team Rocket",
+          "lead_time_delivery_days": 9.38
+        }
+      ]
+    },
+    "jira_lead_time_discovery": {
+      "value": 2.0,
+      "unit": "days",
+      "note": "Discovery lead time до начала delivery.",
+      "details": [
+        {
+          "board_id": 1,
+          "sprint_id": 101,
+          "sprint": "Sprint 1",
+          "issue": "PROJ-1",
+          "team": "Team Rocket",
+          "lead_time_discovery_days": 2.0
+        }
+      ]
+    },
+    "jira_spillover_ratio": {
+      "value": 0.0,
+      "unit": "ratio",
+      "note": "Spillover = незавершённые задачи / план",
+      "details": [
+        {
+          "board_id": 1,
+          "sprint_id": 101,
+          "sprint": "Sprint 1",
+          "rate": 0.0,
+          "planned_issues": 1,
+          "not_completed_issues": 0,
+          "planned_story_points": 8.0,
+          "not_completed_story_points": 0.0
+        }
+      ]
+    },
+    "jira_sprint_plan_fact": {
+      "value": {
+        "board_id": 1,
+        "sprint_id": 101,
+        "sprint": "Sprint 1",
+        "issues_planned": 1,
+        "issues_completed": 1,
+        "issues_added": 0,
+        "issues_removed": 0,
+        "story_points_planned": 8.0,
+        "story_points_completed": 8.0,
+        "story_points_added": 0.0,
+        "story_points_removed": 0.0,
+        "worklog_hours": 6.0,
+        "team_summary": [
+          {
+            "team": "Team Rocket",
+            "issues": {
+              "planned": 1,
+              "completed": 1,
+              "not_completed": 0,
+              "added": 0,
+              "removed": 0
+            },
+            "story_points": {
+              "planned": 8.0,
+              "completed": 8.0,
+              "not_completed": 0.0,
+              "added": 0.0,
+              "removed": 0.0
+            },
+            "worklog_hours": 6.0
+          }
+        ]
+      },
+      "unit": "table",
+      "note": "План/факт по спринту с разбивкой по командам",
+      "details": [
+        {
+          "board_id": 1,
+          "sprint_id": 101,
+          "sprint": "Sprint 1",
+          "issues_planned": 1,
+          "issues_completed": 1,
+          "issues_added": 0,
+          "issues_removed": 0,
+          "story_points_planned": 8.0,
+          "story_points_completed": 8.0,
+          "story_points_added": 0.0,
+          "story_points_removed": 0.0,
+          "worklog_hours": 6.0,
+          "team_summary": [
+            {
+              "team": "Team Rocket",
+              "issues": {
+                "planned": 1,
+                "completed": 1,
+                "not_completed": 0,
+                "added": 0,
+                "removed": 0
+              },
+              "story_points": {
+                "planned": 8.0,
+                "completed": 8.0,
+                "not_completed": 0.0,
+                "added": 0.0,
+                "removed": 0.0
+              },
+              "worklog_hours": 6.0
+            }
+          ]
+        }
+      ]
+    },
+    "jira_velocity_trend": {
+      "value": 8.0,
+      "unit": "story_points",
+      "note": "Velocity по завершённым story points",
+      "details": [
+        {
+          "board_id": 1,
+          "sprint_id": 101,
+          "sprint": "Sprint 1",
+          "completed_story_points": 8.0
+        }
+      ]
+    },
+    "jira_sprint_overview": {
+      "value": {
+        "board_id": 1,
+        "sprint_id": 101,
+        "sprint": "Sprint 1",
+        "issues": {
+          "planned": 1,
+          "completed": 1,
+          "not_completed": 0,
+          "added": 0,
+          "removed": 0
+        },
+        "story_points": {
+          "planned": 8.0,
+          "completed": 8.0,
+          "not_completed": 0.0,
+          "added": 0.0,
+          "removed": 0.0
+        },
+        "worklog": {
+          "total_hours": 6.0,
+          "per_user": {
+            "Alice": 4.0,
+            "Bob": 2.0
+          }
+        },
+        "teams": [
+          {
+            "team": "Team Rocket",
+            "issues": {
+              "planned": 1,
+              "completed": 1,
+              "not_completed": 0,
+              "added": 0,
+              "removed": 0
+            },
+            "story_points": {
+              "planned": 8.0,
+              "completed": 8.0,
+              "not_completed": 0.0,
+              "added": 0.0,
+              "removed": 0.0
+            },
+            "worklog_hours": 6.0
+          }
+        ]
+      },
+      "unit": "sprints",
+      "note": "Сводка по последнему спринту"
+    },
+    "jira_team_progress": {
+      "value": [
+        {
+          "team": "Team Rocket",
+          "issues": {
+            "planned": 1,
+            "completed": 1,
+            "not_completed": 0,
+            "added": 0,
+            "removed": 0
+          },
+          "story_points": {
+            "planned": 8.0,
+            "completed": 8.0,
+            "not_completed": 0.0,
+            "added": 0.0,
+            "removed": 0.0
+          },
+          "worklog_hours": 6.0
+        }
+      ],
+      "unit": "teams",
+      "note": "Командный прогресс по спринту",
+      "details": [
+        {
+          "board_id": 1,
+          "sprint_id": 101,
+          "sprint": "Sprint 1",
+          "teams": [
+            {
+              "team": "Team Rocket",
+              "issues": {
+                "planned": 1,
+                "completed": 1,
+                "not_completed": 0,
+                "added": 0,
+                "removed": 0
+              },
+              "story_points": {
+                "planned": 8.0,
+                "completed": 8.0,
+                "not_completed": 0.0,
+                "added": 0.0,
+                "removed": 0.0
+              },
+              "worklog_hours": 6.0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
